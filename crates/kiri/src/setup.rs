@@ -161,7 +161,7 @@ pub fn run(args: &[String]) -> io::Result<()> {
         // with the names already there, it is asked for on its own.
         let named = crate::daemon::dns::installed();
         if let Err(e) = domains() {
-            println!("container names stay on *.kiri.localhost ({e}); `kiri setup --domains` tries again");
+            println!("container names stay on *.localhost ({e}); `kiri setup --domains` tries again");
         } else if named {
             if let Err(e) = docker_socket() {
                 println!("{DOCKER_SOCK} stays as it is ({e})");
@@ -179,7 +179,7 @@ pub fn run(args: &[String]) -> io::Result<()> {
 pub fn domains() -> io::Result<()> {
     use crate::daemon::dns;
     if dns::installed() {
-        println!("containers answer at http://<name>.kiri.local");
+        println!("containers answer at http://<name>.test");
         return Ok(());
     }
     let tmp = std::env::temp_dir().join(format!("kiri-resolver-{}", std::process::id()));
@@ -190,9 +190,9 @@ pub fn domains() -> io::Result<()> {
     let (command, why) = match &link {
         Some(l) => (
             format!("mkdir -p /etc/resolver && cp '{}' {} && chmod 644 {} && ({l} || true)", tmp.display(), dns::RESOLVER, dns::RESOLVER),
-            "Kiri wants to give your containers names like myapp.kiri.local, and to answer at /var/run/docker.sock for tools that look for Docker there.",
+            "Kiri wants to give your containers names like myapp.test, and to answer at /var/run/docker.sock for tools that look for Docker there.",
         ),
-        None => (format!("mkdir -p /etc/resolver && cp '{}' {} && chmod 644 {}", tmp.display(), dns::RESOLVER, dns::RESOLVER), "Kiri wants to give your containers names like myapp.kiri.local."),
+        None => (format!("mkdir -p /etc/resolver && cp '{}' {} && chmod 644 {}", tmp.display(), dns::RESOLVER, dns::RESOLVER), "Kiri wants to give your containers names like myapp.test."),
     };
     let result = as_admin(&command, why);
     let _ = std::fs::remove_file(&tmp);
@@ -201,7 +201,7 @@ pub fn domains() -> io::Result<()> {
         let _ = docker_socket_fallback(&crate::daemon::socket_path()?);
     }
     result?;
-    println!("containers answer at http://<name>.kiri.local");
+    println!("containers answer at http://<name>.test");
     Ok(())
 }
 

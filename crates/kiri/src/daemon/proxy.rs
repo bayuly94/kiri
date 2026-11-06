@@ -151,7 +151,7 @@ pub fn container_env() -> Vec<String> {
     }
     if !env.is_empty() {
         let mut skip = e.no_proxy.clone();
-        skip.extend(["localhost", "127.0.0.1", ".kiri.local", ".kiri.localhost", "host.docker.internal"].map(str::to_owned));
+        skip.extend(["localhost", "127.0.0.1", ".test", ".localhost", "host.docker.internal"].map(str::to_owned));
         let skip = skip.join(",");
         env.push(format!("NO_PROXY={skip}"));
         env.push(format!("no_proxy={skip}"));

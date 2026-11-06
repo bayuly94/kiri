@@ -1960,15 +1960,23 @@ impl Engine {
     /// services.
     pub fn route(&self, host: &str) -> Option<super::domains::Target> {
         let host = host.split(':').next()?.to_ascii_lowercase();
-        let name = host.strip_suffix(".kiri.localhost").or_else(|| host.strip_suffix(".kiri.local"))?.to_owned();
+        let name = if let Some(first) = host.split('.').next().filter(|s| s.starts_with("dev-")) {
+            first.strip_prefix("dev-").unwrap_or(first).to_owned()
+        } else {
+            let raw = host.strip_suffix(".test")
+                .or_else(|| host.strip_suffix(".localhost"))
+                .or_else(|| host.strip_suffix(".gardana.my.id"))
+                .or_else(|| host.strip_suffix(".vetcloud.web.id"))?;
+            raw.strip_prefix("dev-").unwrap_or(raw).to_owned()
+        };
         let st = self.lock();
         let c = st.containers.values().find(|c| {
             c.status == Status::Running && {
                 let label = |k: &str| c.spec.labels.get(k).and_then(|v| v.as_str()).unwrap_or("");
                 let service = format!("{}.{}", label("com.docker.compose.service"), label("com.docker.compose.project"));
                 // `dev.kiri.domain=api.myapp` (comma-separated for several) picks the names.
-                let chosen = label(DOMAIN_LABEL).split(',').map(|d| own_name(d.trim())).any(|d| !d.is_empty() && d.eq_ignore_ascii_case(&name));
-                chosen || c.name.eq_ignore_ascii_case(&name) || service.eq_ignore_ascii_case(&name) || (name.len() >= 12 && c.id.starts_with(&name))
+                let chosen = label(DOMAIN_LABEL).split(',').map(|d| own_name(d.trim())).any(|d| !d.is_empty() && (d.eq_ignore_ascii_case(&name) || d.replace('_', "-").eq_ignore_ascii_case(&name.replace('_', "-"))));
+                chosen || c.name.eq_ignore_ascii_case(&name) || c.name.replace('_', "-").eq_ignore_ascii_case(&name.replace('_', "-")) || service.eq_ignore_ascii_case(&name) || (name.len() >= 12 && c.id.starts_with(&name))
             }
         })?;
         let ip = if c.spec.network_mode == "host" { [127, 0, 0, 1] } else { c.ip? };
@@ -2024,7 +2032,7 @@ impl Engine {
 
     /// Running containers' domains, for the router's "not found" page.
     pub fn domains(&self) -> Vec<String> {
-        let suffix = if super::dns::installed() { "kiri.local" } else { "kiri.localhost" };
+        let suffix = if super::dns::installed() { "test" } else { "localhost" };
         let mut v = self.each(|c| {
             let chosen = c.spec.labels.get(DOMAIN_LABEL).and_then(|v| v.as_str()).map(|d| own_name(d.split(',').next().unwrap_or("").trim()).to_owned());
             (c.status == Status::Running).then(|| format!("{}.{suffix}", chosen.filter(|d| !d.is_empty()).unwrap_or_else(|| c.name.clone())))
@@ -2960,7 +2968,7 @@ pub const DOMAIN_LABEL: &str = "dev.kiri.domain";
 /// `api.myapp`, from any of `api.myapp`, `api.myapp.kiri.local` or
 /// `api.myapp.kiri.localhost`.
 fn own_name(d: &str) -> &str {
-    d.strip_suffix(".kiri.localhost").or_else(|| d.strip_suffix(".kiri.local")).unwrap_or(d)
+    d.strip_suffix(".test").or_else(|| d.strip_suffix(".localhost")).or_else(|| d.strip_suffix(".gardana.my.id")).or_else(|| d.strip_suffix(".vetcloud.web.id")).unwrap_or(d)
 }
 
 /// Docker's container-name rule: non-empty, `[a-zA-Z0-9_.-]` only. A name

@@ -2827,11 +2827,11 @@ function welcome() {
           ${pictureBar('localhost<tspan style="fill:var(--faint)">:8080</tspan>', false)}
           <span class="t">localhost</span><span class="d">By port. Nothing to set up.</span></button>
         <button class="choice" data-pick="local" aria-pressed="${pick === "local"}">
-          ${pictureBar('myapp<tspan fill="#E0B420">.kiri.local</tspan>', true)}
-          <span class="t">.kiri.local</span><span class="d">By name, no ports. ${WIN ? "Windows asks for an administrator's approval once." : "Needs an administrator password once."}</span></button>
+          ${pictureBar('myapp<tspan fill="#E0B420">.test</tspan>', true)}
+          <span class="t">.test</span><span class="d">By name, no ports. ${WIN ? "Windows asks for an administrator's approval once." : "Needs an administrator password once."}</span></button>
       </div>
       ${pick === "local" && !WIN ? `<div class="admin-note"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg></span>
-        <span><b>macOS will ask for an administrator password next.</b> To make names like <span class="mono">myapp.kiri.local</span> work, Kiri adds one small settings file to your Mac (<span class="mono">/etc/resolver/kiri.local</span>), and changing system settings always needs an administrator. Kiri uses the password only for that, once. It never sees the password: macOS handles it.</span></div>` : ""}
+        <span><b>macOS will ask for an administrator password next.</b> To make names like <span class="mono">myapp.test</span> work, Kiri adds one small settings file to your Mac (<span class="mono">/etc/resolver/test</span>), and changing system settings always needs an administrator. Kiri uses the password only for that, once. It never sees the password: macOS handles it.</span></div>` : ""}
       <p>You can change this later in Settings → Domains.</p>
       <div class="row-end"><span></span><button class="btn primary" id="welcome-go">Continue</button></div>
     </div>`;
@@ -3340,26 +3340,26 @@ function renderSettings() {
   </div>`;
   // On Linux: kiri.localhost only, for now; nothing to switch.
   const domainsPane = LINUX ? `<div class="pane"><h3>Domains</h3>
-    <div class="pref"><span class="t">Local names</span><span class="d">Running containers answer at <span class=mono>&lt;name&gt;.kiri.localhost</span>, which needs no setup.</span></div>
-    <p class="muted">Compose services answer at <span class="mono">&lt;service&gt;.&lt;project&gt;.kiri.localhost</span>. <span class="mono">.kiri.local</span> names and HTTPS aren't on Linux yet.</p>
+    <div class="pref"><span class="t">Local names</span><span class="d">Running containers answer at <span class=mono>&lt;name&gt;.localhost</span>, which needs no setup.</span></div>
+    <p class="muted">Compose services answer at <span class="mono">&lt;service&gt;.&lt;project&gt;.localhost</span>. <span class="mono">.test</span> names and HTTPS aren't on Linux yet.</p>
   </div>`
   // On Windows: a DNS rule instead of /etc/resolver, and no HTTPS.
   : WIN ? `<div class="pane"><h3>Domains</h3>
     <div class="pref"><span class="t">Local names</span><span class="d">${ui.domainsOn
-      ? "On: running containers answer at <span class=mono>&lt;name&gt;.kiri.local</span>."
-      : "Off: containers answer at <span class=mono>&lt;name&gt;.kiri.localhost</span>, which needs no setup."}</span>
-      <div class="seg" role="group" aria-label="Local names"><button data-domains="0" aria-pressed="${!ui.domainsOn}">kiri.localhost</button><button data-domains="1" aria-pressed="${!!ui.domainsOn}">kiri.local</button></div></div>
-    <p class="muted">Compose services answer at <span class="mono">&lt;service&gt;.&lt;project&gt;.${ui.suffix}</span>. Changing this asks Windows for an administrator's approval, since it adds or removes a DNS rule for <span class="mono">.kiri.local</span>.</p>
+      ? "On: running containers answer at <span class=mono>&lt;name&gt;.test</span>."
+      : "Off: containers answer at <span class=mono>&lt;name&gt;.localhost</span>, which needs no setup."}</span>
+      <div class="seg" role="group" aria-label="Local names"><button data-domains="0" aria-pressed="${!ui.domainsOn}">localhost</button><button data-domains="1" aria-pressed="${!!ui.domainsOn}">.test</button></div></div>
+    <p class="muted">Compose services answer at <span class="mono">&lt;service&gt;.&lt;project&gt;.${ui.suffix}</span>. Changing this asks Windows for an administrator's approval, since it adds or removes a DNS rule for <span class="mono">.test</span>.</p>
   </div>` : `<div class="pane"><h3>Domains</h3>
     <div class="pref"><span class="t">Local names</span><span class="d">${ui.domainsOn
-      ? "On: running containers answer at <span class=mono>&lt;name&gt;.kiri.local</span>."
-      : "Off: containers answer at <span class=mono>&lt;name&gt;.kiri.localhost</span>, which needs no setup."}</span>
-      <div class="seg" role="group" aria-label="Local names"><button data-domains="0" aria-pressed="${!ui.domainsOn}">kiri.localhost</button><button data-domains="1" aria-pressed="${!!ui.domainsOn}">kiri.local</button></div></div>
+      ? "On: running containers answer at <span class=mono>&lt;name&gt;.test</span>."
+      : "Off: containers answer at <span class=mono>&lt;name&gt;.localhost</span>, which needs no setup."}</span>
+      <div class="seg" role="group" aria-label="Local names"><button data-domains="0" aria-pressed="${!ui.domainsOn}">localhost</button><button data-domains="1" aria-pressed="${!!ui.domainsOn}">.test</button></div></div>
     <div class="pref"><span class="t">HTTPS</span><span class="d">${ui.https
-      ? `On: containers open at <span class=mono>https://</span> with Kiri's own certificate, which only vouches for <span class=mono>.kiri.local</span> and <span class=mono>.kiri.localhost</span> names.`
+      ? `On: containers open at <span class=mono>https://</span> with Kiri's own certificate, which only vouches for <span class=mono>.test</span> and <span class=mono>.localhost</span> names.`
       : `Trust Kiri's certificate so <span class=mono>https://myapp.${ui.suffix}</span> works. macOS asks for your password. The certificate can only vouch for Kiri's own names.`}</span>
       <div class="seg" role="group" aria-label="HTTPS"><button data-https="0" aria-pressed="${!ui.https}">Off</button><button data-https="1" aria-pressed="${!!ui.https}">On</button></div></div>
-    <p class="muted">Compose services answer at <span class="mono">&lt;service&gt;.&lt;project&gt;.${ui.suffix}</span>. Changing this needs admin rights (an administrator password), since it adds or removes <span class="mono">/etc/resolver/kiri.local</span>.</p>
+    <p class="muted">Compose services answer at <span class="mono">&lt;service&gt;.&lt;project&gt;.${ui.suffix}</span>. Changing this needs admin rights (an administrator password), since it adds or removes <span class="mono">/etc/resolver/test</span>.</p>
   </div>`;
   const a = about;
   const mib = (b) => (b ? `${(b / 1073741824).toFixed(1)} GB` : "—");
@@ -4498,7 +4498,6 @@ function renderStatus() {
       : `<span class="sep">·</span><span class="num" title="${esc(memTitle())}">${mem}</span>`) : "",
     k8s ? `<span class="sep">·</span><span class="item"><svg class="k8s" viewBox="0 0 24 24" aria-hidden="true"><path d="${K8S_LOGO}"/></svg>Kubernetes ${esc(k8sVersion)}</span>` : "",
     ctxStatusItem(),
-    `<span class="sep">·</span><button class="item" data-open-site="${FEEDBACK_URL}" title="Send an idea or report a bug on GitHub"><svg class="i" viewBox="0 0 256 256"><path d="${PH.chatdots}"/></svg>Feedback</button>`,
   ];
   setHTML(sb, parts.join(""));
 }
@@ -4588,7 +4587,7 @@ function renderUpdate() {
       <div class="foot">Later installs it when you quit Kiri.</div>`);
   } else if (ui.engineStale && !ui.staleHidden && (!u || u.hidden || u.phase === "downloading")) {
     el.innerHTML = card("up", `Finish updating to Kiri ${ui.status?.version || ""}`, `The engine still runs ${esc(ui.engineStale)}. Restarting it stops running containers, and those with a restart policy start again.`, "", `<div class="row">${btn("Restart engine", 'data-upd="engine"', "primary")}${btn("Later", 'data-upd="enginelater"')}</div>`);
-  } else el.innerHTML = crashCard();
+  } else el.innerHTML = "";
 }
 
 function updateAction(a) {
@@ -5590,28 +5589,7 @@ function drawDiagLog() {
 
 function diagPane() {
   const levels = [["", "All levels"], ["error", "Errors"], ["warn", "Warnings and errors"], ["info", "Info and up"]];
-  const crash = (c) => {
-    const busy = dg.sending.has(c.name) || c.sending, open = dg.open.has(c.name);
-    return `<div class="dg-crash" data-crashrow="${esc(c.name)}" aria-expanded="${open}">
-      <button class="car" aria-label="${open ? "Hide" : "Show"} the crash report">${dgIcon("caret")}</button>
-      <span class="when">${esc(dgWhen(c.time))}</span><span><span class="dg-part">${DG_PART[c.part] || esc(c.part)}</span></span>
-      <span class="first" title="${esc(c.location ? `${c.message}\n${c.location}` : c.message || "")}">${esc(c.message || "(no message)")}</span>
-      <span class="st">${c.sent ? `<span class="pill sent">Sent</span>${c.id ? `<span class="mono">${esc(c.id)}</span>${copyBtn(c.id, "report ID")}` : ""}`
-        : busy ? `<span class="pill">Sending…</span>` : `<span class="pill">Not sent</span>${btn("Send", `data-crashsend="${esc(c.name)}"`)}`}</span>
-    </div>${open ? `<pre class="dg-stack">${esc(c.text || "")}</pre>` : ""}`;
-  };
-  const crashes = dg.crashes == null ? `<div class="none">Looking for crash reports…</div>` : dg.crashes.length ? dg.crashes.map(crash).join("") : `<div class="none">No crashes. Kiri keeps a report here if one of its parts ever stops unexpectedly.</div>`;
-  return `<div class="pane diag"><h3>Diagnostics</h3>
-    <div class="pref"><span class="t">Send crash reports automatically</span>
-      <span class="d">When part of Kiri crashes, the stack trace and the last 200 log lines before it go to Kiri Cloud, with Kiri's and the system's versions, the computer's model and a random ID for this install. Never your Kiri Cloud account, and nothing from inside your containers. Your home folder, image and container names, tokens and passwords are taken out.</span>
-      <div class="seg" role="group" aria-label="Send crash reports automatically"><button data-dgauto="0" aria-pressed="${prefs.crashReports !== true}">Off</button><button data-dgauto="1" aria-pressed="${prefs.crashReports === true}">On</button></div></div>
-    <div class="pref"><span class="t">Diagnostics report</span>
-      <span class="d">Recent logs, crash reports and versions in one redacted file, for when something goes wrong.</span>
-      <div class="dg-acts"><button class="btn sm" data-dgreport="save">Create report…</button><button class="btn sm" data-dgreport="send">${dgIcon("send")}Send to Kiri</button></div>
-      ${dg.sent ? `<div class="dg-result">${dgIcon("checkcircle")}<span>Sent. Quote <span class="mono">${esc(dg.sent)}</span> if you write to us.</span>${copyBtn(dg.sent, "report ID")}</div>` : ""}</div>
-    <h4 class="ksub">Recent crashes</h4>
-    <div class="dg-crashes">${crashes}</div>
-    <h4 class="ksub">Logs</h4>
+  return `<div class="pane diag"><h3>Diagnostics Logs</h3>
     <div class="dg-logs">
       <div class="logbar">
         <div class="seg" role="group" aria-label="Part">${[["", "All"], ["ui", "Window"], ["daemon", "Engine"], ["cli", "CLI"]].map(([v, l]) => `<button data-dgpart="${v}" aria-pressed="${dg.part === v}">${l}</button>`).join("")}</div>
@@ -7381,28 +7359,79 @@ function renderShare() {
   const a = sh.account, u = sh.usage, live = shLive(), items = [...sh.items.values()].sort(shOrder);
   const total = shInUse(), now = shNowStat(), served = shServed();
   $("subtitle").textContent = total ? `${total} live` : "";
-  const capped = u && u.cap != null && u.cap < 2 ** 53, pct = capped ? Math.min(100, Math.round(u.used / Math.max(1, u.cap) * 100)) : 0;
+
+  const curDomain = a?.login || "gardana.my.id";
+  let domains = Array.isArray(a?.domains) && a.domains.length ? [...a.domains] : [];
+  for (const d of ["gardana.my.id", "vetcloud.web.id"]) {
+    if (!domains.includes(d)) domains.push(d);
+  }
+  if (!domains.includes(curDomain)) domains.unshift(curDomain);
+  const domainOpts = domains.map((d) => `<option value="${esc(d)}"${d === curDomain ? " selected" : ""}>${esc(d)}</option>`).join("");
+  const signedIn = !!a?.signedIn;
+
+  const cfCard = `<div class="pref" style="margin-bottom:16px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--subtle);display:flex;justify-content:space-between;align-items:center;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="display:inline-flex;color:#F38020;">${shSvg("globe")}</span>
+      <div>
+        <b>Akun Cloudflare Zero Trust</b>
+        <span class="muted" style="margin-left:8px;font-size:12px;">${signedIn ? "● Terhubung" : "○ Belum Login"}</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      ${signedIn
+        ? `<button class="btn tiny" data-shlogout style="font-size:12px;">Logout</button>`
+        : `<button class="btn tiny primary" data-cflogin style="font-size:12px;background:#F38020;border-color:#F38020;color:#fff;">Login ke Cloudflare</button>`}
+    </div>
+  </div>`;
+
+  const domainRows = domains.map((d) => {
+    return `<tr style="border-top:1px solid var(--border);height:42px;">
+      <td style="padding:8px 12px;font-weight:600;font-size:13px;font-family:monospace;">${esc(d)}</td>
+      <td style="padding:8px 12px;text-align:right;">
+        <button class="btn tiny danger" data-cfdeldomain="${esc(d)}" style="font-size:12px;color:var(--err);" title="Hapus domain ini">Hapus</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  const domainTable = `<div class="pref" style="margin-bottom:20px;padding:16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div>
+        <h4 style="margin:0 0 4px 0;font-size:14px;font-weight:600;">Daftar Domain</h4>
+        <div class="muted" style="font-size:12px;">Domain Cloudflare yang digunakan untuk tunneling saat share kontainer.</div>
+      </div>
+      <button class="btn primary sm" data-cfadddomain style="font-size:12px;">+ Tambah Domain</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:13px;">
+        <thead>
+          <tr style="color:var(--muted);font-size:12px;border-bottom:1px solid var(--border);">
+            <th style="padding:6px 12px;">Domain</th>
+            <th style="padding:6px 12px;text-align:right;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${domainRows}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+
   const stat = (icon, k, v, s, extra = "") => `<div class="sh-stat"><div class="k"><svg class="i" viewBox="0 0 256 256"><path d="${PH[icon]}"/></svg>${k}</div><div class="v">${v}</div><div class="s">${s}</div>${extra}</div>`;
   const stats = `<div class="sh-stats">
-    ${stat("globe", "Shared now", now.v, now.s, now.slots)}
     ${stat("updown", "Traffic served", size(served.out),
       served.requests ? `${served.requests} ${served.requests === 1 ? "request" : "requests"} · ${size(served.in)} received` : "No requests yet",
       shWave(sh.wave, 34, 'aria-label="Traffic over the last two minutes"', "No visitors in the last 2 minutes"))}
-    ${u ? shMonth(u, capped, pct) : stat("clock", "This month", "—", a?.signedIn ? "Checking your plan…" : "Sign in to see your plan")}
+    ${stat("clock", "Provider", "Cloudflare", "Zero Trust Argo Tunnel")}
   </div>`;
   const ext = shExt();
   const rows = items.map(shRow).join("") + shCli().map(shCliRow).join("")
     + (ext.length ? `<div class="sh-group">External <span>running on other computers on your account</span></div>${ext.map(shExtRow).join("")}` : "");
   const list = rows ? `<div class="sh-list">${rows}</div>`
-    : `<div class="sh-empty">${shGlobe}<h3>Nothing shared yet</h3><p>Press <b>Share</b> on a running container to give it a public https link anyone can open.</p>
-        <button class="btn" data-shcontainers>Go to Containers</button></div>`;
-  const foot = !a ? "" : a.signedIn
-    ? `<div class="sh-foot"><span class="sh-ghmark" title="Signed in with GitHub">${shSvg("github")}</span>Signed in to Kiri Cloud with GitHub as <b>${esc(a.login || "you")}</b>
-        ${a.session ? `<span class="sep">·</span><span title="This sign-in's ID: a hash of its token, safe to quote when asking for help">Session <code class="sh-sess">${esc(a.session)}</code></span>` : ""}
-        <span class="sep">·</span><button class="linkish" data-shlogout>Sign out</button></div>`
-    : `<div class="sh-foot">Not signed in<button class="linkish" data-shlogin>Sign in with GitHub</button></div>`;
-  const intro = `<p class="sh-intro">Share gives a container or a Kubernetes service a public https link through a secure tunnel to Kiri Cloud. ${a?.signedIn && !sh.remoteOff ? "This lists every link on your account, on any computer." : "It stays up while Kiri is running."}</p>`;
-  morph($("content"), `<div class="sh">${intro}${stats}${list}${foot}</div>`);
+    : `<div class="sh-empty">${shGlobe}<h3>Nothing shared yet</h3><p>Tekan tombol <b>Share</b> pada kontainer yang sedang berjalan untuk mempublikasikannya melalui Cloudflare.</p>
+        <button class="btn" data-shcontainers>Buka Containers</button></div>`;
+  const foot = "";
+  const intro = `<p class="sh-intro">Fitur Share otomatis membuat public HTTPS link melalui <b>Cloudflare Tunnel</b> langsung ke kontainer Anda tanpa perlu port forwarding manual.</p>`;
+  morph($("content"), `<div class="sh">${intro}${cfCard}${domainTable}${stats}${list}</div>`);
 }
 /* Puts `html` in `el` changing only what differs, so a redraw doesn't restart
    animations, repaint icons or flash a hover. Rows are matched by what they
@@ -7698,9 +7727,65 @@ function shStart(name) {
 }
 
 function shShare(name) {
-  if (sh.account?.signedIn) return shStart(name);
-  sh.pending = name;
-  shSignin();
+  const curDomain = sh.account?.login || "gardana.my.id";
+  let domains = Array.isArray(sh.account?.domains) && sh.account.domains.length ? [...sh.account.domains] : [];
+  for (const d of ["gardana.my.id", "vetcloud.web.id"]) {
+    if (!domains.includes(d)) domains.push(d);
+  }
+  if (!domains.includes(curDomain)) domains.unshift(curDomain);
+
+  const cleanName = name.replace(/^\//, "").replace(/_/g, "-");
+
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  scrim.innerHTML = `<div class="dialog" role="dialog" style="width:min(440px,calc(100% - 32px));">
+    <h3 style="margin-bottom:8px;">Share ${esc(name)} via Cloudflare</h3>
+    <p class="muted" style="margin-bottom:14px;font-size:13px;">Pilih domain dan nama subdomain untuk public link:</p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px;">
+      <label style="font-size:12px;display:flex;flex-direction:column;gap:4px;">
+        <span class="muted">Subdomain:</span>
+        <div style="display:flex;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;">
+          <span style="color:var(--muted);font-family:monospace;">dev-</span>
+          <input id="sh-sub-inp" value="${esc(cleanName)}" style="background:transparent;border:none;color:inherit;font-family:monospace;flex:1;outline:none;" />
+        </div>
+      </label>
+      <label style="font-size:12px;display:flex;flex-direction:column;gap:4px;">
+        <span class="muted">Domain:</span>
+        <select id="sh-dom-sel" style="background:var(--bg);color:inherit;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:13px;">
+          ${domains.map((d) => `<option value="${esc(d)}"${d === curDomain ? " selected" : ""}>${esc(d)}</option>`).join("")}
+        </select>
+      </label>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+        Public link: <code id="sh-prev-link" style="color:var(--accent);">https://dev-${esc(cleanName)}.${esc(curDomain)}</code>
+      </div>
+    </div>
+    <div class="row-end">
+      <button class="btn" id="sh-dlg-cancel">Batal</button>
+      <button class="btn primary" id="sh-dlg-go">Share Sekarang</button>
+    </div>
+  </div>`;
+  document.body.append(scrim);
+
+  const subInp = scrim.querySelector("#sh-sub-inp");
+  const domSel = scrim.querySelector("#sh-dom-sel");
+  const prev = scrim.querySelector("#sh-prev-link");
+  const upd = () => {
+    const s = subInp.value.trim().replace(/^\//, "").replace(/_/g, "-") || cleanName;
+    const d = domSel.value || curDomain;
+    prev.textContent = `https://dev-${s}.${d}`;
+  };
+  subInp.addEventListener("input", upd);
+  domSel.addEventListener("change", upd);
+
+  scrim.querySelector("#sh-dlg-cancel").addEventListener("click", () => scrim.remove());
+  scrim.querySelector("#sh-dlg-go").addEventListener("click", () => {
+    const s = subInp.value.trim().replace(/^\//, "").replace(/_/g, "-") || cleanName;
+    const d = domSel.value || curDomain;
+    scrim.remove();
+    sh.starting.add(name); sh.reveal.add(name);
+    send("share", { name, value: `${s}@${d}` });
+    if (ui.view === "containers") render();
+  });
 }
 
 /* The Share button on a running container with a published port (Kiri Dev only);
@@ -7817,10 +7902,61 @@ function shClicks(ev) {
     renderShare();
   }
   else if (t("[data-shcontainers]")) show("containers");
-  else if (t("[data-shlogin]")) { send("sharelogin"); }
   else if (t("[data-shlogout]")) send("sharelogout");
+  else if (t("[data-cfadddomain]")) promptAddDomain();
+  else if ((el = t("[data-cfdeldomain]"))) {
+    const d = el.dataset.cfdeldomain;
+    if (confirm(`Hapus domain ${d}?`)) {
+      send("cf_del_domain", { value: d });
+    }
+  }
+  else if ((el = t("[data-cfusedomain]"))) {
+    send("cf_set_domain", { value: el.dataset.cfusedomain });
+  }
+  else if (t("[data-cflogin]") || t("[data-shlogin]")) { send("sharelogin"); }
 }
+
+function promptAddDomain() {
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  scrim.innerHTML = `<div class="dialog" role="dialog" style="width:min(440px,calc(100% - 32px));">
+    <h3 style="margin-bottom:8px;">Tambah Domain DNS Cloudflare</h3>
+    <p class="muted" style="margin-bottom:14px;font-size:13px;">Masukkan nama domain Cloudflare Anda atau jalankan login otorisasi:</p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px;">
+      <label style="font-size:12px;display:flex;flex-direction:column;gap:4px;">
+        <span class="muted">Nama Domain:</span>
+        <input id="cf-dom-inp" placeholder="contoh: domainku.com atau myapp.id" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:inherit;outline:none;" />
+      </label>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <button class="btn sm" id="cf-auth-btn" style="color:#F38020;">Login Otorisasi Domain</button>
+      <div class="row-end" style="gap:8px;">
+        <button class="btn" id="cf-dom-cancel">Batal</button>
+        <button class="btn primary" id="cf-dom-save">Simpan Domain</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.append(scrim);
+
+  scrim.querySelector("#cf-dom-cancel").addEventListener("click", () => scrim.remove());
+  scrim.querySelector("#cf-auth-btn").addEventListener("click", () => {
+    scrim.remove();
+    send("sharelogin");
+  });
+  scrim.querySelector("#cf-dom-save").addEventListener("click", () => {
+    const val = scrim.querySelector("#cf-dom-inp").value.trim().toLowerCase();
+    if (!val) return;
+    scrim.remove();
+    send("cf_add_domain", { value: val });
+  });
+}
+
 $("content").addEventListener("click", shClicks);
+$("content").addEventListener("change", (ev) => {
+  if (ev.target.matches("[data-cfdomain]") || ev.target.id === "cf-domain-select") {
+    send("cf_set_domain", { value: ev.target.value });
+  }
+});
 
 /* --- The list's head ------------------------------------------------------------------
    Containers, Images, Volumes, Networks, Builds, Pods and Services say what

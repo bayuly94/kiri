@@ -81,6 +81,135 @@ pub struct Config {
     pub device: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CloudflareConfig {
+    #[serde(default = "default_cf_domain")]
+    pub domain: String,
+    #[serde(default = "default_cf_tunnel")]
+    pub tunnel_id: String,
+    #[serde(default)]
+    pub domains: Vec<String>,
+}
+
+pub fn add_domain(domain: String) {
+    let mut cf = load_cloudflare();
+    let clean = domain.trim().trim_start_matches('.').to_ascii_lowercase();
+    if !clean.is_empty() && !cf.domains.contains(&clean) {
+        cf.domains.push(clean.clone());
+        if cf.domain.is_empty() {
+            cf.domain = clean;
+        }
+        let _ = save_cloudflare(&cf);
+    }
+}
+
+pub fn del_domain(domain: String) {
+    let mut cf = load_cloudflare();
+    let clean = domain.trim().trim_start_matches('.').to_ascii_lowercase();
+    cf.domains.retain(|d| d != &clean);
+    if cf.domain == clean {
+        cf.domain = cf.domains.first().cloned().unwrap_or_default();
+    }
+    let _ = save_cloudflare(&cf);
+}
+
+fn default_cf_domain() -> String {
+    "gardana.my.id".into()
+}
+fn default_cf_tunnel() -> String {
+    "6757d1e4-dd78-44ce-9f0d-5bae7b603265".into()
+}
+
+impl Default for CloudflareConfig {
+    fn default() -> Self {
+        Self {
+            domain: default_cf_domain(),
+            tunnel_id: default_cf_tunnel(),
+            domains: vec![default_cf_domain()],
+        }
+    }
+}
+
+pub fn cloudflare_config_path() -> PathBuf {
+    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
+    home.join(".kiri/cloudflare.json")
+}
+
+pub fn cloudflare_domains() -> Vec<String> {
+    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    let cert_file = home.join(".cloudflared/cert.pem");
+    let Ok(content) = std::fs::read_to_string(&cert_file) else { return Vec::new() };
+    let raw: String = content.lines().filter(|l| !l.starts_with("---")).collect();
+    let Some(decoded) = kiri_image::b64::decode(&raw) else { return Vec::new() };
+    let Ok(val) = serde_json::from_slice::<Value>(&decoded) else { return Vec::new() };
+    let Some(token) = val["apiToken"].as_str() else { return Vec::new() };
+
+    let mut domains = Vec::new();
+    if let Ok(mut resp) = ureq::get("https://api.cloudflare.com/client/v4/zones?per_page=50")
+        .header("Authorization", &format!("Bearer {token}"))
+        .header("User-Agent", "kiri")
+        .call()
+    {
+        if let Ok(body) = resp.body_mut().read_to_vec() {
+            if let Ok(json) = serde_json::from_slice::<Value>(&body) {
+                if let Some(list) = json["result"].as_array() {
+                    for item in list {
+                        if let Some(name) = item["name"].as_str() {
+                            domains.push(name.to_ascii_lowercase());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if domains.is_empty() {
+        if let Some(zone_id) = val["zoneID"].as_str() {
+            if let Ok(mut resp) = ureq::get(&format!("https://api.cloudflare.com/client/v4/zones/{zone_id}"))
+                .header("Authorization", &format!("Bearer {token}"))
+                .header("User-Agent", "kiri")
+                .call()
+            {
+                if let Ok(body) = resp.body_mut().read_to_vec() {
+                    if let Ok(json) = serde_json::from_slice::<Value>(&body) {
+                        if let Some(name) = json["result"]["name"].as_str() {
+                            domains.push(name.to_ascii_lowercase());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    domains
+}
+
+pub fn load_cloudflare() -> CloudflareConfig {
+    let path = cloudflare_config_path();
+    let mut cfg = if let Ok(b) = std::fs::read(&path) {
+        serde_json::from_slice::<CloudflareConfig>(&b).unwrap_or_default()
+    } else {
+        CloudflareConfig::default()
+    };
+    let cf_domains = cloudflare_domains();
+    for d in cf_domains {
+        if !cfg.domains.contains(&d) {
+            cfg.domains.push(d);
+        }
+    }
+    if !cfg.domains.is_empty() && (cfg.domain.is_empty() || !cfg.domains.contains(&cfg.domain)) {
+        cfg.domain = cfg.domains[0].clone();
+    }
+    cfg
+}
+
+pub fn save_cloudflare(cfg: &CloudflareConfig) -> io::Result<()> {
+    let path = cloudflare_config_path();
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let bytes = serde_json::to_vec_pretty(cfg).map_err(io::Error::other)?;
+    std::fs::write(&path, bytes)
+}
+
 fn config_path() -> io::Result<PathBuf> {
     if let Some(p) = std::env::var_os("KIRI_SHARE_CONFIG") {
         return Ok(PathBuf::from(p));
@@ -982,19 +1111,50 @@ type OnEvent = Arc<dyn Fn(Event) + Send + Sync>;
 /// Opens a tunnel. Fails at once only if not signed in; everything after
 /// that, including the first connection, is reported through `on_event`.
 pub fn start(opts: Options, on_event: impl Fn(Event) + Send + Sync + 'static) -> io::Result<Handle> {
-    let cfg = load()?;
-    let token = cfg.token.clone().ok_or_else(|| io::Error::other("not signed in; run `kiri share login`"))?;
-    let srv = server(&cfg);
+    start_with_domain(opts, None, on_event)
+}
+
+pub fn start_with_domain(
+    opts: Options,
+    custom_domain: Option<String>,
+    on_event: impl Fn(Event) + Send + Sync + 'static,
+) -> io::Result<Handle> {
     let stop = Arc::new(Stopper::default());
     let on_event: OnEvent = Arc::new(move |e: Event| {
         log_event(&e);
         on_event(e)
     });
     let s = stop.clone();
-    let version = env!("CARGO_PKG_VERSION");
-    let client = if opts.app { format!("{} {version}", crate::flavor::APP) } else { format!("kiri {version}") };
-    let who = Who { machine: machine_id(&cfg.device), host: host_name(), device: cfg.device, client };
-    let thread = std::thread::Builder::new().name("share".into()).spawn(move || run_tunnel(srv, token, who, opts, s, on_event))?;
+    let thread = std::thread::Builder::new().name("share".into()).spawn(move || {
+        let cf = load_cloudflare();
+        let domain_name = custom_domain.unwrap_or(cf.domain);
+        let raw_name = opts.name.clone().unwrap_or_else(|| opts.target.label.clone());
+        let clean_name = raw_name.trim_start_matches('/').replace('_', "-").to_ascii_lowercase();
+        let domain = format!("dev-{clean_name}.{domain_name}");
+        let url = format!("https://{domain}");
+
+        on_event(Event::Connecting { server: format!("Cloudflare Edge ({domain_name})") });
+
+        let _ = std::process::Command::new("/opt/homebrew/bin/cloudflared")
+            .args(["tunnel", "route", "dns", "-f", &cf.tunnel_id, &domain])
+            .output();
+
+        on_event(Event::Live {
+            url: url.clone(),
+            rate: 0,
+            remaining: u64::MAX,
+            warning: false,
+            domains: vec![domain],
+        });
+
+        while !s.is_stopped() {
+            if s.sleep(Duration::from_millis(500)) {
+                break;
+            }
+        }
+
+        on_event(Event::Ended { reason: "stopped".into(), error: false });
+    })?;
     Ok(Handle { stop, thread: Some(thread) })
 }
 
@@ -2110,6 +2270,12 @@ fn status_cli(json: bool) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_cf_domains() {
+        let d = super::cloudflare_domains();
+        println!("CF DOMAINS: {:?}", d);
+        assert!(!d.is_empty());
+    }
 
     #[test]
     fn a_name_waiting_for_review_is_pending() {

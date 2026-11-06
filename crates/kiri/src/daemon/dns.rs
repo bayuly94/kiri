@@ -17,8 +17,8 @@ use std::time::{Duration, Instant};
 
 /// The resolver file's port; unprivileged, so the daemon needs no root.
 pub const PORT: u16 = 53535;
-pub const RESOLVER: &str = "/etc/resolver/kiri.local";
-pub const SUFFIX: &str = "kiri.local";
+pub const RESOLVER: &str = "/etc/resolver/test";
+pub const SUFFIX: &str = "test";
 
 pub fn start() -> io::Result<()> {
     let sock = UdpSocket::bind(("127.0.0.1", PORT))?;
@@ -66,7 +66,7 @@ fn answer(q: &[u8]) -> Option<Vec<u8>> {
     }
     let qtype = u16::from_be_bytes([*q.get(i)?, *q.get(i + 1)?]);
     let question = q.get(12..i + 4)?;
-    let ours = name == SUFFIX || name.ends_with(&format!(".{SUFFIX}"));
+    let ours = name == "test" || name.ends_with(".test") || name == SUFFIX || name.ends_with(&format!(".{SUFFIX}")) || name == "kiri.local" || name.ends_with(".kiri.local");
     let a = ours && qtype == 1;
     let mut r = Vec::with_capacity(question.len() + 28);
     r.extend_from_slice(&q[..2]);
@@ -259,7 +259,7 @@ fn mac_resolvers(name: &str, resolv_conf: &Path, resolver_dir: &Path) -> Vec<Soc
             .find_map(|l| l.trim().strip_prefix("domain").map(|d| d.trim().trim_end_matches('.').to_ascii_lowercase()))
             .filter(|d| !d.is_empty())
             .unwrap_or(file);
-        if domain == SUFFIX {
+        if domain == SUFFIX || domain == "kiri.local" {
             continue;
         }
         let inside = name == domain || name.ends_with(&format!(".{domain}"));

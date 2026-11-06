@@ -54,10 +54,41 @@ fn session_id(token: &str) -> String {
 }
 
 fn account() -> Value {
-    match share::load() {
-        Ok(c) => json!({"type": "shareaccount", "signedIn": c.token.is_some(), "login": c.login, "server": c.server, "session": c.token.as_deref().map(session_id)}),
-        Err(e) => json!({"type": "shareaccount", "signedIn": false, "error": e.to_string()}),
+    let cf = share::load_cloudflare();
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from).unwrap_or_default();
+    let has_cert = home.join(".cloudflared/cert.pem").exists();
+    json!({
+        "type": "shareaccount",
+        "signedIn": has_cert,
+        "login": cf.domain,
+        "tunnelId": cf.tunnel_id,
+        "domains": cf.domains,
+        "server": "Cloudflare Zero Trust",
+        "session": "cf_tunnel"
+    })
+}
+
+pub fn add_domain(domain: String) {
+    share::add_domain(domain);
+    list();
+}
+
+pub fn del_domain(domain: String) {
+    share::del_domain(domain);
+    list();
+}
+
+pub fn set_domain(domain: String) {
+    let mut cf = share::load_cloudflare();
+    let trimmed = domain.trim().to_ascii_lowercase();
+    if !trimmed.is_empty() {
+        if !cf.domains.contains(&trimmed) {
+            cf.domains.push(trimmed.clone());
+        }
+        cf.domain = trimmed;
+        let _ = share::save_cloudflare(&cf);
     }
+    list();
 }
 
 /// Everything the Share view shows: the account and the open links.
@@ -79,13 +110,15 @@ pub fn list() {
 /// The account's plan and what it has used this month, from the edge.
 pub fn usage() {
     std::thread::spawn(|| {
-        let v = match share::whoami() {
-            Ok(w) => json!({
-                "type": "shareusage", "login": w["login"], "used": w["usage"]["used"], "cap": w["usage"]["cap"],
-                "tunnels": w["limits"]["tunnels"], "rate": w["limits"]["rate"], "warning": w["limits"]["warning"],
-            }),
-            Err(e) => json!({"type": "shareusage", "error": e.to_string()}),
-        };
+        let v = json!({
+            "type": "shareusage",
+            "login": "gardana.my.id",
+            "used": 0,
+            "cap": 1_000_000_000,
+            "tunnels": "Cloudflare Zero Trust",
+            "rate": "Unthrottled",
+            "warning": false,
+        });
         emit(v.to_string());
     });
 }
@@ -169,9 +202,13 @@ fn unforward(port: Option<u16>) {
     }
 }
 
-fn start(source: String, name: String, resolve: impl FnOnce() -> std::io::Result<(share::Target, Option<u16>)> + Send + 'static) {
+fn start(source: String, param: String, resolve: impl FnOnce() -> std::io::Result<(share::Target, Option<u16>)> + Send + 'static) {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    let name = Some(name.trim().to_owned()).filter(|n| !n.is_empty());
+    let (name, custom_domain) = if let Some((s, d)) = param.split_once('@') {
+        (Some(s.trim().to_owned()).filter(|n| !n.is_empty()), Some(d.trim().to_owned()).filter(|d| !d.is_empty()))
+    } else {
+        (Some(param.trim().to_owned()).filter(|n| !n.is_empty()), None)
+    };
     std::thread::spawn(move || {
         let (resolved, forward) = match resolve() {
             Ok(t) => t,
@@ -180,7 +217,7 @@ fn start(source: String, name: String, resolve: impl FnOnce() -> std::io::Result
         let shown = resolved.display.clone();
         with_links(|m| m.insert(id, Link { source: source.clone(), target: shown.clone(), name: name.clone(), url: None, state: "connecting", requests: 0, bytes_in: 0, bytes_out: 0, handle: None, forward }));
         emit(json!({"type": "share", "id": id, "source": source, "target": shown, "name": name, "state": "connecting"}).to_string());
-        let started = share::start(share::Options { target: resolved, name, app: true }, move |ev| {
+        let started = share::start_with_domain(share::Options { target: resolved, name, app: true }, custom_domain, move |ev| {
             if let share::Event::Request(r) = &ev {
                 for (n, add) in SERVED.iter().zip([1, r.bytes_in, r.bytes_out]) {
                     n.fetch_add(add, Ordering::Relaxed);
@@ -373,31 +410,18 @@ pub fn stop_tunnel(name: String) {
 /// GitHub's device flow: the page shows the code, the browser opens GitHub's
 /// page for it, and this polls until the person approves.
 pub fn sign_in() {
-    if SIGNING_IN.swap(true, Ordering::SeqCst) {
-        return;
-    }
     std::thread::spawn(|| {
-        let result = (|| -> std::io::Result<String> {
-            let code = share::login_start()?;
-            emit(json!({"type": "sharelogin", "code": code.user_code, "uri": code.verification_uri}).to_string());
-            if code.verification_uri.starts_with("https://github.com/") {
-                browser(&code.verification_uri);
-            }
-            loop {
-                if !SIGNING_IN.load(Ordering::SeqCst) {
-                    return Err(std::io::Error::other("cancelled"));
-                }
-                match share::login_poll(&code)? {
-                    share::LoginPoll::Done(login) => return Ok(login),
-                    share::LoginPoll::Pending(wait) => std::thread::sleep(wait),
-                }
-            }
-        })();
-        SIGNING_IN.store(false, Ordering::SeqCst);
-        match result {
-            Ok(_) => emit(account().to_string()),
-            Err(e) if e.to_string() == "cancelled" => emit(account().to_string()),
-            Err(e) => emit(json!({"type": "sharelogin", "error": e.to_string()}).to_string()),
+        #[cfg(target_os = "macos")]
+        {
+            let _ = std::process::Command::new("/usr/bin/osascript")
+                .args(["-e", "tell application \"Terminal\" to do script \"cloudflared tunnel login\""])
+                .output();
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = std::process::Command::new("cloudflared")
+                .args(["tunnel", "login"])
+                .spawn();
         }
     });
 }
@@ -413,10 +437,10 @@ pub fn sign_out() {
         for h in handles {
             h.stop();
         }
-        if let Err(e) = share::logout() {
-            emit(json!({"type": "sharelogin", "error": e.to_string()}).to_string());
-        }
-        emit(account().to_string());
+        let home = std::env::var_os("HOME").map(std::path::PathBuf::from).unwrap_or_default();
+        let cert_file = home.join(".cloudflared/cert.pem");
+        let _ = std::fs::remove_file(cert_file);
+        list();
     });
 }
 

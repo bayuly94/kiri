@@ -144,7 +144,7 @@ pub fn run(_args: &[String]) -> io::Result<()> {
         match domains::start(engine.clone()) {
             Ok(port) => diag::info!(format!(
                 "container domains on http://<name>.{}{}",
-                if dns::installed() { "kiri.local" } else { "kiri.localhost" },
+                if dns::installed() { "test" } else { "localhost" },
                 if port == 80 { String::new() } else { format!(":{port}") }
             )),
             Err(e) => diag::warn!("container domains off", error = e),

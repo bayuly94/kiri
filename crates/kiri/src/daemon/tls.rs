@@ -23,7 +23,7 @@ use rustls::sign::CertifiedKey;
 
 /// The authority's name, as Keychain Access shows it.
 pub const CA_NAME: &str = "Kiri Local Certificate Authority";
-const SUFFIXES: [&str; 2] = ["kiri.local", "kiri.localhost"];
+const SUFFIXES: [&str; 2] = ["test", "localhost"];
 
 pub fn dir() -> Option<PathBuf> {
     super::state_dir().ok().map(|d| d.join("tls"))
@@ -70,7 +70,7 @@ fn authority() -> io::Result<(Issuer<'static, KeyPair>, CertificateDer<'static>)
     // from its name constraints. An older authority is replaced (the user
     // trusts the new one once), or that fix would never reach an install
     // that already had one.
-    const CA_VERSION: &str = "2";
+    const CA_VERSION: &str = "3";
     let version_path = dir.join("ca.version");
     if key_path.is_file() && std::fs::read_to_string(&version_path).is_ok_and(|v| v.trim() == CA_VERSION).not() {
         let _ = std::fs::remove_file(&key_path);
@@ -430,10 +430,11 @@ mod tests {
 
     #[test]
     fn only_kiri_names() {
-        assert!(super::ours("myapp.kiri.local"));
-        assert!(super::ours("web.shop.kiri.localhost"));
-        assert!(!super::ours("kiri.local"));
+        assert!(super::ours("myapp.test"));
+        assert!(super::ours("web.shop.localhost"));
+        assert!(!super::ours("test"));
+        assert!(!super::ours("localhost"));
         assert!(!super::ours("example.com"));
-        assert!(!super::ours("evil.kiri.local.example.com"));
+        assert!(!super::ours("evil.test.example.com"));
     }
 }

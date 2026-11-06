@@ -160,9 +160,9 @@ fn local_url(c: &serde_json::Value) -> Option<String> {
         return None;
     }
     let label = |k: &str| c["Labels"][k].as_str().unwrap_or("");
-    let suffix = if crate::daemon::dns::installed() { "kiri.local" } else { "kiri.localhost" };
+    let suffix = if crate::daemon::dns::installed() { "test" } else { "localhost" };
     let chosen = label("dev.kiri.domain").split(',').next().unwrap_or("").trim();
-    let chosen = chosen.strip_suffix(".kiri.localhost").or_else(|| chosen.strip_suffix(".kiri.local")).unwrap_or(chosen);
+    let chosen = chosen.strip_suffix(".test").or_else(|| chosen.strip_suffix(".localhost")).unwrap_or(chosen);
     let name = c["Names"][0].as_str().unwrap_or("").trim_start_matches('/');
     let host = match (chosen, label("com.docker.compose.project")) {
         (c, _) if !c.is_empty() => c.to_owned(),
@@ -328,8 +328,8 @@ fn engine(rx: Receiver<Cmd>, tx: Sender<Cmd>) {
                 // Cancelling macOS's password prompt is a choice, not an error.
                 match result {
                     Err(e) if !e.to_string().contains("-128") => emit(notice("error", &format!("Could not change container names: {e}"))),
-                    _ if crate::daemon::dns::installed() => emit(notice("ok", "Containers now answer at <name>.kiri.local")),
-                    _ if !on => emit(notice("ok", "Containers answer at <name>.kiri.localhost")),
+                    _ if crate::daemon::dns::installed() => emit(notice("ok", "Containers now answer at <name>.test")),
+                    _ if !on => emit(notice("ok", "Containers answer at <name>.localhost")),
                     _ => {}
                 }
                 // /var/run/docker.sock was asked for with the same password.
@@ -698,7 +698,7 @@ fn status_event() -> String {
 /// Which names containers answer at now.
 fn domains_event() -> String {
     let on = crate::daemon::dns::installed();
-    serde_json::json!({"type": "domains", "on": on, "suffix": if on { "kiri.local" } else { "kiri.localhost" }, "https": crate::daemon::tls::trusted()}).to_string()
+    serde_json::json!({"type": "domains", "on": on, "suffix": if on { "test" } else { "kiri.localhost" }, "https": crate::daemon::tls::trusted()}).to_string()
 }
 
 /// Settings → About: this build, and the engine as the daemon reports it.
@@ -1588,6 +1588,18 @@ fn handle(text: &str, tx: &Sender<Cmd>, autostart: bool, view: Option<&str>) {
             sharing::sign_out();
             Ok(())
         }
+        "cf_set_domain" => {
+            sharing::set_domain(msg.value.as_str().unwrap_or_default().to_owned());
+            Ok(())
+        }
+        "cf_add_domain" => {
+            sharing::add_domain(msg.value.as_str().unwrap_or(&msg.name).to_owned());
+            Ok(())
+        }
+        "cf_del_domain" => {
+            sharing::del_domain(msg.value.as_str().unwrap_or(&msg.name).to_owned());
+            Ok(())
+        }
         // The built-in terminal: its shells, and its own clipboard and links.
         "term" => {
             match msg.name.as_str() {
@@ -1859,7 +1871,7 @@ fn handle(text: &str, tx: &Sender<Cmd>, autostart: bool, view: Option<&str>) {
         }
         // Only the container's own addresses: a page cannot open arbitrary URLs.
         "open" => {
-            let local = msg.name.strip_prefix("http://").or_else(|| msg.name.strip_prefix("https://")).and_then(|r| r.split(['/', ':']).next()).is_some_and(|h| h == "localhost" || h.ends_with(".kiri.localhost") || h.ends_with(".kiri.local"));
+            let local = msg.name.strip_prefix("http://").or_else(|| msg.name.strip_prefix("https://")).and_then(|r| r.split(['/', ':']).next()).is_some_and(|h| h == "localhost" || h.ends_with(".localhost") || h.ends_with(".test") || h.ends_with(".gardana.my.id") || h.ends_with(".vetcloud.web.id"));
             // A build warning's rule page (docs.docker.com/go/dockerfile/rule/…).
             let docs = msg.name.strip_prefix("https://docs.docker.com/go/").is_some_and(|rest| rest.bytes().all(|b| b.is_ascii_alphanumeric() || b"-/".contains(&b)));
             if local || docs || msg.name == "https://runkiri.com" || msg.name == "https://runkiri.com/share/notice" || msg.name == "https://canestack.com" || msg.name == "https://github.com/libracoder/kiri/issues/new" || msg.name == "https://github.com/libracoder/kiri" || msg.name == "https://github.com/anchore/grype" {
